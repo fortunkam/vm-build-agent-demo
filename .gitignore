@@ -1,0 +1,6 @@
+**\passwords.*
+env/secrets.tfvars
+env/.terraform
+env/.terraform.*
+env/terraform.*
+env/tfplan.plan

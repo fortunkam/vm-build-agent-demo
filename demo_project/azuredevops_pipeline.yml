@@ -1,0 +1,59 @@
+# Note the VMAddress is the internal address of the target server (needs to be updated)
+# Also requires a Variable Group (VMConfig) to be synced with the deployed keyvault.
+# Assumes the self host agent is deployed as part of the SelfHostWinAgents pool
+
+name: MarkdownDemo
+trigger:
+- main
+
+# pool:
+#   name: 'SelfHostWinAgents'
+
+variables:
+- name: VMAddress
+  value: 10.0.0.4
+- group: VMConfig
+
+stages:
+- stage: Build
+  displayName: "Build the application"
+  jobs:
+  - job: Build
+    steps:
+    - task: Markdown2Html@3
+      inputs:
+        mode: 'singleFile'
+        markdownPath: 'index.md'
+        htmlPath: '$(build.artifactstagingdirectory)/index.html'
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathToPublish: '$(build.artifactstagingdirectory)'
+        artifactName: 'HTML'
+- stage: Deploy
+  displayName: "Deploy stage"
+  dependsOn: Build
+  jobs: 
+  - deployment: "Deploy"
+    displayName: "Deploy Job"
+    environment: Production
+    pool: 
+      name: SelfHostWinAgents
+    strategy: 
+      runOnce:
+        deploy:
+          steps:
+          - task: DownloadBuildArtifacts@0
+            inputs:
+              buildType: 'current'
+              downloadType: 'single'
+              artifactName: 'HTML'
+              downloadPath: '$(System.ArtifactsDirectory)'
+          - task: PowerShell@2
+            inputs:
+              targetType: 'inline'
+              script: |
+                $so = New-PsSessionOption –SkipCACheck -SkipCNCheck
+                $pass = ConvertTo-SecureString -AsPlainText "" -Force
+                $usr = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList "$(ServerUserName)", $pass
+                $session = New-PSSession –ComputerName "$(VMAddress)" -Credential $usr -UseSSL -SessionOption $so
+                Copy-Item –Path $(System.ArtifactsDirectory)\HTML\index.html –Destination 'C:\inetpub\wwwroot' –ToSession $session
