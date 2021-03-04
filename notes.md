@@ -1,4 +1,5 @@
-wish list
+Notes:
+
 
 Create Windows Server VM with IIS on vnet (with public IP address)
 Use managed build agent to grab index.md from repo, convert to html and publish to build artifacts.
